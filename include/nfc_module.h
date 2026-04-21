@@ -3,6 +3,7 @@
 //  nfc_module.h  –  PN532 NFC Module (Real HW via Adafruit)
 // ============================================================
 #include <Arduino.h>
+#include <SPI.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <vector>
