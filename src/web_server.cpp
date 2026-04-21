@@ -471,9 +471,11 @@ void WebUI::setupApiRoutes() {
 
     // GET /api/ping — dead-simple connectivity check, no auth/LittleFS needed
     _server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest* req) {
-        AsyncWebServerResponse* r = req->beginResponse(200, "application/json",
-            "{"ok":true,"firmware":"" FIRMWARE_VERSION "","heap":"
-            + String(ESP.getFreeHeap()) + "}");
+        String body = String("{\"ok\":true,\"firmware\":\"")
+                    + FIRMWARE_VERSION
+                    + "\",\"heap\":"
+                    + String(ESP.getFreeHeap()) + "}";
+        AsyncWebServerResponse* r = req->beginResponse(200, "application/json", body);
         r->addHeader("Access-Control-Allow-Origin", "*");
         req->send(r);
     });
