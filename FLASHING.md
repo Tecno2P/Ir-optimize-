@@ -1,4 +1,4 @@
-# IR Remote Web GUI v2.0.0 — Flashing Instructions
+# IR Remote Web GUI v4.0.0 — Flashing Instructions
 
 ## Quick Start
 

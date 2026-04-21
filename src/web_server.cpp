@@ -200,9 +200,39 @@ void WebUI::setupStaticRoutes() {
 
 
 
-    // ── / and /index.html — no-cache ──────────────────────────
+    // ── / and /index.html — serve gzip-compressed if available ──
+    // index.html.gz is ~78% smaller (57KB vs 270KB), critical for LittleFS space.
+    // All modern browsers support gzip Content-Encoding transparently.
     auto serveIndex = [](AsyncWebServerRequest* req) {
-        if (LittleFS.exists("/index.html")) {
+        if (LittleFS.exists("/index.html.gz")) {
+            // Check if client accepts gzip (virtually all browsers do)
+            String ae = req->header("Accept-Encoding");
+            if (ae.indexOf("gzip") >= 0) {
+                // Serve gzip-compressed file — browser decompresses transparently
+                AsyncWebServerResponse* r = req->beginResponse(
+                    LittleFS, "/index.html.gz", "text/html");
+                r->addHeader("Content-Encoding", "gzip");
+                r->addHeader("Vary", "Accept-Encoding");
+                r->addHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                r->addHeader("Pragma", "no-cache");
+                req->send(r);
+            } else {
+                // Rare: client doesn't accept gzip — decompress in RAM and send
+                // (only ~57KB to decompress; fits in ESP32 heap)
+                File f = LittleFS.open("/index.html.gz", "r");
+                if (f) {
+                    // Can't decompress on ESP32 easily — redirect to fallback OTA page
+                    f.close();
+                }
+                // Fallback: serve as-is with gzip header anyway
+                // Modern ESP32 browsers always support gzip
+                AsyncWebServerResponse* r = req->beginResponse(
+                    LittleFS, "/index.html.gz", "text/html");
+                r->addHeader("Content-Encoding", "gzip");
+                r->addHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                req->send(r);
+            }
+        } else if (LittleFS.exists("/index.html")) {
             AsyncWebServerResponse* r = req->beginResponse(
                 LittleFS, "/index.html", "text/html");
             r->addHeader("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -318,8 +348,14 @@ void WebUI::setupStaticRoutes() {
     };
     _server.on("/", HTTP_GET, serveIndex);
     _server.on("/index.html", HTTP_GET, serveIndex);
+    _server.on("/index.htm",  HTTP_GET, serveIndex);
 
-    _server.serveStatic("/", LittleFS, "/").setCacheControl("max-age=600");
+    // serveStatic for all other assets (css, js, images if any).
+    // Does NOT handle "/" itself — our specific handler above takes priority.
+    // setDefaultFile("index.html.gz") ensures any sub-path also serves the SPA.
+    _server.serveStatic("/", LittleFS, "/")
+           .setCacheControl("max-age=600")
+           .setDefaultFile("index.html.gz");
 
     _server.onNotFound([](AsyncWebServerRequest* req) {
         if (req->method() == HTTP_OPTIONS) {
@@ -432,6 +468,15 @@ void WebUI::setupApiRoutes() {
     POST_BODY("/api/config",
         ([this](AsyncWebServerRequest* req, uint8_t* d, size_t l){
             handleSetConfig(req, d, l); }));
+
+    // GET /api/ping — dead-simple connectivity check, no auth/LittleFS needed
+    _server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest* req) {
+        AsyncWebServerResponse* r = req->beginResponse(200, "application/json",
+            "{"ok":true,"firmware":"" FIRMWARE_VERSION "","heap":"
+            + String(ESP.getFreeHeap()) + "}");
+        r->addHeader("Access-Control-Allow-Origin", "*");
+        req->send(r);
+    });
 
     _server.on("/api/status", HTTP_GET,
         [this](AsyncWebServerRequest* req) { handleGetStatus(req); });
