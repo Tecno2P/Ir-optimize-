@@ -197,12 +197,9 @@ IRButton IRReceiver::decodeToButton(const decode_results& r) const {
         case decode_type_t::YORK:         btn.protocol = IRProtocol::YORK;         goto capture_raw;
         case decode_type_t::CLIMABUTLER:  btn.protocol = IRProtocol::CLIMABUTLER;  goto capture_raw;
         case decode_type_t::TOTO:         btn.protocol = IRProtocol::TOTO;         goto capture_raw;
-        // ── Protocols present in ir_button.h but previously missing from decoder ──
-        case decode_type_t::LG_AC:        btn.protocol = IRProtocol::LG_AC;        goto capture_raw;
-        case decode_type_t::MIDEA_AC:     btn.protocol = IRProtocol::MIDEA_AC;     goto capture_raw;
-        case decode_type_t::ELECTRA_AC2:  btn.protocol = IRProtocol::ELECTRA_AC2;  goto capture_raw;
-        case decode_type_t::BLUESTARHEAVY:btn.protocol = IRProtocol::BLUESTARHEAVY;goto capture_raw;
-        case decode_type_t::EUROM:        btn.protocol = IRProtocol::EUROM;        goto capture_raw;
+        // NOTE: LG_AC, MIDEA_AC, ELECTRA_AC2, BLUESTARHEAVY, EUROM are defined in
+        // our IRProtocol enum but do NOT exist in IRremoteESP8266 v2.8.6 decode_type_t.
+        // They will be decoded as UNKNOWN and fall to the default RAW handler below.
         default:
             // Truly unknown — fall through to generic RAW
             btn.protocol = IRProtocol::RAW;

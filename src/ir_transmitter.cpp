@@ -240,7 +240,24 @@ bool IRTransmitter::doTransmit(IRsend* s, const IRButton& btn) {
             case IRProtocol::ZEPEAL:
                 s->sendZepeal(btn.code, btn.bits, btn.repeats); break;
             case IRProtocol::MWM:
-                s->sendMWM(btn.code, btn.bits, btn.repeats); break;
+                // sendMWM() requires a byte array (not a 64-bit code).
+                // MWM captured as code falls through to sendRaw if rawData available,
+                // otherwise encode the code as a 3-byte array from btn.code.
+                if (!btn.rawData.empty()) {
+                    s->sendRaw(btn.rawData.data(),
+                               static_cast<uint16_t>(btn.rawData.size()),
+                               btn.freqKHz);
+                } else {
+                    // Reconstruct byte array from stored 64-bit code (up to 3 bytes)
+                    uint8_t mwmData[3];
+                    mwmData[0] = (btn.code >> 16) & 0xFF;
+                    mwmData[1] = (btn.code >>  8) & 0xFF;
+                    mwmData[2] =  btn.code        & 0xFF;
+                    uint16_t nb = (btn.bits > 0) ? (btn.bits + 7) / 8 : 3;
+                    if (nb > 3) nb = 3;
+                    s->sendMWM(mwmData, nb, btn.repeats);
+                }
+                break;
 
             // Complex AC + explicit RAW → sendRaw()
             case IRProtocol::RAW:

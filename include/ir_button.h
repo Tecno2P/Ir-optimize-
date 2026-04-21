@@ -209,8 +209,8 @@ inline bool isSimpleProtocol(IRProtocol p) {
         case IRProtocol::GICABLE:
         case IRProtocol::COOLIX:
         case IRProtocol::COOLIX48:
-        case IRProtocol::MWM:
             return true;
+        // MWM uses byte-array sendMWM(), NOT a simple 64-bit code — exclude from simple
         default:
             return false;
     }
